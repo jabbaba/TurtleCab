@@ -24,6 +24,7 @@ import { useTheme } from '../src/hooks/useTheme';
 export default function PassengerRegisterScreen() {
   const router = useRouter();
   const { theme } = useTheme();
+  const styles = getStyles(theme.colors);
   const { signUp } = useAuth();
   
   const [formData, setFormData] = useState({
@@ -240,7 +241,7 @@ export default function PassengerRegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   safeArea: {
     flex: 1,
   },
@@ -262,22 +263,21 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   uploadButton: {
+    padding: 15,
+    borderRadius: 10,
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#FF6B35',
-    borderStyle: 'dashed',
-    marginBottom: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
   imagePreview: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginVertical: 10,
   },
   previewImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
+    width: 150,
+    height: 150,
+    resizeMode: 'contain',
   },
   errorText: {
     color: '#FF4444',

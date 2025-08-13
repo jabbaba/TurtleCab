@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '../src/context/ThemeContext';
 import { AuthProvider } from '../src/context/AuthContext';
+import { DriverAuthProvider } from '../src/context/DriverAuthContext';
 import { useTheme } from '../src/hooks/useTheme';
 
 function StackLayout() {
@@ -37,7 +38,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <StackLayout />
+        <DriverAuthProvider>
+          <StackLayout />
+        </DriverAuthProvider>
       </AuthProvider>
     </ThemeProvider>
   );

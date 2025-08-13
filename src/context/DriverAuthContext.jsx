@@ -1,9 +1,9 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { supabase } from '../api/supabase';
 
-export const AuthContext = createContext();
+export const DriverAuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
+export const DriverAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         const { data, error } = await supabase
-          .from('passenger_profiles')
+          .from('driver_profiles')
           .select('*')
           .eq('id', session.user.id)
           .single();
@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         const { data, error } = await supabase
-          .from('passenger_profiles')
+          .from('driver_profiles')
           .select('*')
           .eq('id', session.user.id)
           
@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }) => {
 
       if (data.user) {
         const { data: profileData, error: profileError } = await supabase
-          .from('passenger_profiles')
+          .from('driver_profiles')
           .select('*')
           .eq('id', data.user.id)
           .single()
@@ -87,8 +87,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <DriverAuthContext.Provider value={value}>
       {!loading && children}
-    </AuthContext.Provider>
+    </DriverAuthContext.Provider>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Alert, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../src/hooks/useAuth';
+import { useDriverAuth } from '../src/hooks/useDriverAuth';
 
 import { View, Text, Card } from '../src/components/Themed';
 import { Button } from '../src/components/Button';
@@ -13,7 +13,7 @@ import { useTheme } from '../src/hooks/useTheme';
 export default function DriverLoginScreen() {
   const router = useRouter();
   const { theme } = useTheme();
-  const { signIn } = useAuth();
+  const { signIn } = useDriverAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);

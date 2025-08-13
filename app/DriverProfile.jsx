@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Alert, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../src/hooks/useAuth';
+import { useDriverAuth } from '../src/hooks/useDriverAuth';
 
 import { View, Text, Card } from '../src/components/Themed';
 import { Button } from '../src/components/Button';
@@ -10,7 +10,7 @@ import { Logo } from '../src/components/Logo';
 
 export default function DriverProfileScreen() {
   const router = useRouter();
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading, signOut } = useDriverAuth();
 
   const handleLogout = async () => {
     const { error } = await signOut();
