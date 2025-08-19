@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useDriverAuth } from '../src/hooks/useDriverAuth';
+import { supabase } from '../src/api/supabase';
 
 import { View, Text, Card } from '../src/components/Themed';
 import { Button } from '../src/components/Button';
@@ -42,7 +43,7 @@ export default function DriverRegisterScreen() {
   const [vehicleImage, setVehicleImage] = useState(null);
   const [certificateOfRegistration, setCertificateOfRegistration] = useState(null);
   const [driversLicense, setDriversLicense] = useState(null);
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -79,24 +80,11 @@ export default function DriverRegisterScreen() {
     setIsLoading(true);
 
     try {
-      const uploadImage = async (uri, bucket) => {
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}`;
-        const { data, error } = await supabase.storage.from(bucket).upload(fileName, blob);
-        if (error) {
-          throw error;
-        }
-        return data.path;
-      };
-
-      const vehicleImageUrl = await uploadImage(vehicleImage, 'vehicles');
-      const certificateOfRegistrationUrl = await uploadImage(certificateOfRegistration, 'certificate-of-registration');
-      const driversLicenseUrl = await uploadImage(driversLicense, 'driver-id');
-
-      const { error } = await signUp({
+      // Step 1: Sign up the user and get the user ID
+      const { data: authData, error: authError } = await signUp({
         email: formData.email,
         password: formData.password,
+        phone: formData.phoneNumber,
         first_name: formData.firstName,
         middle_name: formData.middleName,
         last_name: formData.lastName,
@@ -105,25 +93,128 @@ export default function DriverRegisterScreen() {
         license_number: formData.licenseNumber,
         plate_number: formData.plateNumber,
         vehicle_model: formData.vehicleModel,
-        vehicle_image_url: vehicleImageUrl,
-        certificate_of_registration_url: certificateOfRegistrationUrl,
-        drivers_license_url: driversLicenseUrl,
       });
 
-      if (error) {
-        throw error;
+      if (authError) {
+        throw authError;
       }
 
-      Alert.alert(
-        'Registration Successful! 🎉',
-        'Please check your email for verification.',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      if (!authData.user) {
+        throw new Error('Registration failed, user not created.');
+      }
+
+      const userId = authData.user.id;
+
+      // Step 2: Upload images with the user ID in the filename
+      const uploadImage = async (uri, bucket) => {
+        try {
+          if (!uri) {
+            throw new Error('No image URI provided');
+          }
+
+          const fileExt = uri.split('.').pop()?.toLowerCase() ?? 'jpeg';
+          const fileName = `${userId}.${fileExt}`;
+
+          // For React Native, use the file object directly instead of fetch/blob
+          const file = {
+            uri: uri,
+            name: fileName,
+            type: `image/${fileExt}`,
+          };
+
+          console.log(`Uploading to bucket: ${bucket}, filename: ${fileName}`);
+
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .upload(fileName, file, {
+              contentType: `image/${fileExt}`,
+              upsert: true, // Overwrite existing files
+            });
+
+          if (error) {
+            console.error(`Upload error for ${bucket}:`, error);
+
+            // Handle specific errors
+            if (error.message?.includes('Network request failed')) {
+              throw new Error('Network connection failed. Please check your internet connection.');
+            } else if (error.message?.includes('413') || error.message?.includes('too large')) {
+              throw new Error('Image file is too large. Please use a smaller image.');
+            } else if (error.message?.includes('403') || error.message?.includes('forbidden')) {
+              throw new Error(`Permission denied for bucket '${bucket}'. Check your storage policies.`);
+            } else if (error.message?.includes('404')) {
+              throw new Error(`Storage bucket '${bucket}' not found.`);
+            }
+
+            throw error;
+          }
+
+          if (!data?.path) {
+            throw new Error('No file path returned from upload');
+          }
+
+          console.log(`Successfully uploaded to: ${data.path}`);
+
+          // Return the public URL of the uploaded image
+          const { data: { publicUrl } } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(fileName);
+
+          console.log(`Public URL: ${publicUrl}`);
+          return publicUrl;
+
+        } catch (error) {
+          console.error(`Error uploading to ${bucket}:`, error);
+
+          // Re-throw with more context
+          if (error.message?.includes('fetch') || error.message?.includes('Network request failed')) {
+            throw new Error(`Network error uploading to ${bucket}. Please check your connection and try again.`);
+          }
+
+          throw error;
+        }
+      };
+
+      // Upload all images with better error handling
+      try {
+        console.log('Starting image uploads...');
+
+        const vehicleImageUrl = await uploadImage(vehicleImage, 'vehicles');
+        console.log('Vehicle image uploaded successfully');
+
+        const certificateOfRegistrationUrl = await uploadImage(certificateOfRegistration, 'certificate-of-registration');
+        console.log('Certificate uploaded successfully');
+
+        const driversLicenseUrl = await uploadImage(driversLicense, 'driver-id');
+
+        // Step 3: Update the user's profile with the image URLs
+        const { error: profileError } = await supabase
+          .from('driver_profiles')
+          .update({
+            vehicle_image_url: vehicleImageUrl,
+            certificate_of_registration_url: certificateOfRegistrationUrl,
+            drivers_license_url: driversLicenseUrl,
+          })
+          .eq('id', userId);
+
+        Alert.alert(
+          'Registration Successful! 🎉',
+          'Please check your email for verification.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      } catch (error) {
+        Alert.alert('Error', error.message);
+      } finally {
+        setIsLoading(false);
+      }
+
     } catch (error) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setIsLoading(false);
+      console.error('Upload failed:', error);
+      Alert.alert('Upload Failed', error.message);
+      return; // Stop the registration process
     }
+
+
+
   };
 
   const updateFormData = (field, value) => {
@@ -165,7 +256,7 @@ export default function DriverRegisterScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Card style={styles.card}>
             <Text style={styles.title}>Become a Driver</Text>
-            
+
             <TextInput
               placeholder="First Name"
               value={formData.firstName}
@@ -235,7 +326,7 @@ export default function DriverRegisterScreen() {
 
             <Text style={styles.fieldLabel}>Vehicle Image</Text>
             <TouchableOpacity style={styles.uploadButton} onPress={() => pickImage('vehicle')}>
-              <Text style={{color: colors.primary}}>
+              <Text style={{ color: colors.primary }}>
                 {vehicleImage ? 'Change Vehicle Image' : 'Upload Vehicle Image *'}
               </Text>
             </TouchableOpacity>
@@ -248,7 +339,7 @@ export default function DriverRegisterScreen() {
 
             <Text style={styles.fieldLabel}>Certificate of Registration</Text>
             <TouchableOpacity style={styles.uploadButton} onPress={() => pickImage('registration')}>
-              <Text style={{color: colors.primary}}>
+              <Text style={{ color: colors.primary }}>
                 {certificateOfRegistration ? 'Change Certificate' : 'Upload Certificate of Registration *'}
               </Text>
             </TouchableOpacity>
@@ -261,7 +352,7 @@ export default function DriverRegisterScreen() {
 
             <Text style={styles.fieldLabel}>Driver's License</Text>
             <TouchableOpacity style={styles.uploadButton} onPress={() => pickImage('license')}>
-              <Text style={{color: colors.primary}}>
+              <Text style={{ color: colors.primary }}>
                 {driversLicense ? "Change Driver's License" : "Upload Driver's License *"}
               </Text>
             </TouchableOpacity>

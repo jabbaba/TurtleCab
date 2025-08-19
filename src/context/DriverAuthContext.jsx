@@ -22,6 +22,8 @@ export const DriverAuthProvider = ({ children }) => {
         if (data) setProfile(data);
       }
       setLoading(false);
+
+
     };
 
     fetchSession();
@@ -54,11 +56,10 @@ export const DriverAuthProvider = ({ children }) => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        phone,
         options: {
           emailRedirectTo: 'exp://127.0.0.1:8081/--/Verification',
-          data: {
-            ...profileData,
-          },
+          data: profileData,
         },
       });
 

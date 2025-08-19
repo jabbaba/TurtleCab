@@ -104,15 +104,17 @@ export default function PassengerRegisterScreen() {
       if (validId) {
         const fileExt = validId.split('.').pop()?.toLowerCase() ?? 'jpeg';
         const fileName = `${data.user.id}.${fileExt}`;
-        const file = {
+        
+        const formData = new FormData();
+        formData.append('file', {
           uri: validId,
           name: fileName,
           type: `image/${fileExt}`
-        };
+        });
 
         const { error: uploadError } = await supabase.storage
           .from('valid-id')
-          .upload(fileName, file, {
+          .upload(fileName, formData, {
             cacheControl: '3600',
             upsert: true // This allows overwriting existing files
           });
@@ -129,7 +131,7 @@ export default function PassengerRegisterScreen() {
             const valid_id_url = publicUrlData.publicUrl;
 
             const { error: updateError } = await supabase
-              .from('profiles')
+              .from('passenger_profiles')
               .update({
                 valid_id_url
               })
